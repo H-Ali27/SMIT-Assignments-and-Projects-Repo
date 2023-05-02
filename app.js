@@ -1,62 +1,83 @@
-const inputElem = document.getElementById("searchInput");
-const btnElem = document.getElementById("searchBtn");
-const listElem = document.getElementById("recipe-list");
-const detailsElem = document.getElementById("recipeDetailsContainer");
+const quizSelector = document.getElementById("quiz-selector");
+const quizContainer = document.getElementById("quiz-container");
+const questionContainer = document.getElementById("question-container");
+const answerButtonsContainer = document.getElementById("answer-buttons-container");
+const resultContainer = document.getElementById("result-container");
 
 
-const loadRecipeDetails = recipe => {
-    
-    detailsElem.innerHTML = `
-    <h2 class="title">${recipe.title}</h2>
-    <h3>Ingredients: </h3>
-    <ul>
-        ${recipe.ingredients.map(function(ingredient){
-            return "<li>" + ingredient + "</li>"
-        }).join("")}
-    </ul>
-    <h3>Ingredients: </h3>
-    <div>${recipe.instructions}</div>
-    `;
+class Quiz{
+    constructor(questions){
+        this.questions = Quiz.shuffleArray(questions);
+        this.currentQuestionIndex = 0;
+        this.score = 0;
+    }
+    displayQuestion(){
+        answerButtonsContainer.innerHTML = "";
+        const currentQuestion = this.questions[this.currentQuestionIndex];
+        questionContainer.textContent = currentQuestion.question;
+        const answer = Quiz.shuffleArray(currentQuestion.answers);
+        answer.forEach(answer => {
+            const button = document.createElement("button");
+            button.classList = ["answer-button"];
+            button.textContent = answer;
+            button.addEventListener("click",this.checkAnswer.bind(this));
+            answerButtonsContainer.appendChild(button);
+        })
+    }
+    checkAnswer(event){
+        const selectedAnswer = event.target.textContent;
+        const currentQuestion = this.questions[this.currentQuestionIndex];
+        if(selectedAnswer === currentQuestion.correctAnswer){
+            this.score++;
+        }
+        this.currentQuestionIndex++;
+
+        if(this.currentQuestionIndex < this.questions.length){
+            this.displayQuestion();
+        }else{
+            this.showResult();
+        }
+    }
+    showResult(){
+        quizContainer.style.display = "none";
+        resultContainer.style.display = "block";
+        resultContainer.innerHTML = `
+        <h2>QUIZ RESULT</h2>
+        <p>You Scored ${this.score} out of ${this.questions.length}</p>
+        <button id="reload-quiz">Reload All Quiz</button>
+        `;
+        document.getElementById("reload-quiz").addEventListener("click",()=>{
+            quizContainer.style.display = "none";
+            resultContainer.style.display = "none";
+            quizSelector.style.display = "flex";
+        });
+
+    }
+    static shuffleArray(arr){
+        return [...arr].sort(() => Math.random() - 0.5);
+    }
+
 }
 
-const displaySearchResults = results => {
-    listElem.innerHTML = "";
-    detailsElem.innerHTML ="";
-    results.forEach(function(recipe){
-        const li = document.createElement("li");
-        const listItem = `
-        <div class="title">${recipe.title}</div>
-        <div class= "description">${recipe.description}</div>
-        `;
-        li.innerHTML = listItem;
-        li.addEventListener("click",function(){
-            loadRecipeDetails(recipe);
-        })
-        listElem.appendChild(li);
+
+const loadQuiz = question => {
+    const quiz = new Quiz(question)
+    quiz.displayQuestion();
+    quizSelector.style.display = "none";
+    quizContainer.style.display = "block";
+};
+
+
+const loadAllQuiz = async () => {
+    const response = await fetch("./quizzes.json");
+    const quizzes = await response.json();
+
+    quizzes.forEach((quiz, index)=>{
+        const quizcard = document.createElement("div");
+        quizcard.classList = ["quiz-card"];
+        quizcard.textContent = "Quiz " + (index + 1);
+        quizcard.addEventListener("click", () => loadQuiz(quiz));
+        quizSelector.appendChild(quizcard);
     })
 }
-
-const  recipe = async () => {
-    const response = await fetch("./recipes.json");
-    const recipes = await response.json();
-    // console.log(recipes);
-    const search = () => {
-        const query = inputElem.value.toLowerCase();
-
-        const results = recipes.filter(function(recipe){
-            return (recipe.title.toLowerCase().includes(query) || 
-            recipe.ingredients.join(" ").toLowerCase().includes(query));
-            // console.log(recipes);
-        })
-        displaySearchResults(results);
-    }
-    btnElem.addEventListener("click",search);
-}
-recipe();
- 
-//function hierarchy
-/* function recipe =>  (main function) 
-      search function =>  (child function 1)
-         display function =>   (child function 2)
-            load recipeDetail function  (child function 3)
- */
+loadAllQuiz();
